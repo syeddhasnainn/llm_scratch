@@ -13,12 +13,17 @@ print(inputs.shape)
 
 query = inputs[1]
 
+#initialized an empty tensor with inputs.shape[0] = 6
 attn_scores_2 = torch.empty(inputs.shape[0])
-print(attn_scores_2)
 
-print(inputs)
 for i, x_i in enumerate(inputs):
     #for x_0 = [0.43, 0.15, 0.89].[0.55, 0.87, 0.66]
     attn_scores_2[i] = torch.dot(x_i, query)
-    print(attn_scores_2)
+
 print(attn_scores_2)
+
+#normalizing the attention score to get attention weights
+
+attn_weights_2_tmp = attn_scores_2 / attn_scores_2.sum()
+print('weights:', attn_weights_2_tmp)
+print('sum:', attn_weights_2_tmp.sum())
