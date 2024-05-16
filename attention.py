@@ -27,3 +27,18 @@ print(attn_scores_2)
 attn_weights_2_tmp = attn_scores_2 / attn_scores_2.sum()
 print('weights:', attn_weights_2_tmp)
 print('sum:', attn_weights_2_tmp.sum())
+
+#pytorch softmax
+
+print(attn_scores_2.shape)
+attn_weights_2 = torch.softmax(attn_scores_2, dim=0)
+print('attention weights',attn_weights_2)
+
+#computing context vector for input 2 = z2
+query = inputs[1]
+print('query:', query.shape)
+context_vector_2 = torch.zeros(query.shape)
+
+for i, i_x in enumerate(inputs):
+    context_vector_2 += attn_weights_2[i]*x_i
+print(context_vector_2)
