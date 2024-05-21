@@ -108,7 +108,6 @@ class LayerNorm(nn.Module):
         super().__init__()
         self.eps = 1e-5
         self.scale = nn.Parameter(torch.ones(emb_dim))
-        print('scale', self.scale)
         self.shift = nn.Parameter(torch.zeros(emb_dim))
 
     def forward(self, x):
@@ -139,9 +138,6 @@ class GELU(nn.Module):
             (x + 0.044715 * torch.pow(x, 3))
         ))
 
-
-
-
 class FeedForward(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -151,18 +147,18 @@ class FeedForward(nn.Module):
         return self.layers(x)
     
 ffn = FeedForward(GPT_CONFIG_124M)
-x = torch.rand(2,3,768)
+x = torch.rand(2,4,768)
 out = ffn(x)
 print(out.shape)
 
 class TransformerBlock(nn.Module):
     def __init__(self,cfg):
         super().__init__()
-        self.att = MultiHeadAttention(d_in=cfg['emb_dim'], d_out=cfg['emb_dim'], block_size=cfg['context_length'], num_heads=cfg['n_heads'], dropout=cfg['dropout'], qkv_bias=cfg['qkv_bias'])
+        self.att = MultiHeadAttention(d_in=cfg['emb_dim'], d_out=cfg['emb_dim'], context_length=cfg['context_length'], num_heads=cfg['n_heads'], dropout=cfg['drop_rate'], qkv_bias=cfg['qkv_bias'])
         self.ff = FeedForward(cfg)
         self.norm1 = LayerNorm(cfg['emb_dim'])
         self.norm2 = LayerNorm(cfg['emb_dim'])
-        self.drop_resid = nn.Dropout(cfg['dropout'])
+        self.drop_resid = nn.Dropout(cfg['drop_rate'])
 
     def forward(self, x):
         shortcut = x
@@ -176,3 +172,13 @@ class TransformerBlock(nn.Module):
         x = self.ff(x)
         x = self.drop_resid(x)
         x = x + shortcut
+
+
+torch.manual_seed(123)
+x = torch.rand(2,4,768)
+block =  TransformerBlock(GPT_CONFIG_124M)
+output = block(x)
+
+print(x.shape)
+print(out.shape)
+ 
