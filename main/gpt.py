@@ -147,4 +147,4 @@ print('total:', total_params)
 
 total_size_bytes = total_params * 4 
 total_size_mb = total_size_bytes / (1024 * 1024)
-print('size:', total_size_mb)   
+print('size:', total_size_mb)
