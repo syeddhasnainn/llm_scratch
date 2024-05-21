@@ -172,7 +172,7 @@ class TransformerBlock(nn.Module):
 
         shortcut = x
 
-        x = self.norm2
+        x = self.norm2(x)
         x = self.ff(x)
         x = self.drop_resid(x)
         x = x + shortcut
