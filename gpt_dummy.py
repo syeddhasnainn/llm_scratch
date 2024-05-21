@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from attention import MultiHeadAttention
 
 GPT_CONFIG_124M = {
     "vocab_size": 50257,  # Vocabulary size
@@ -153,3 +154,25 @@ ffn = FeedForward(GPT_CONFIG_124M)
 x = torch.rand(2,3,768)
 out = ffn(x)
 print(out.shape)
+
+class TransformerBlock(nn.Module):
+    def __init__(self,cfg):
+        super().__init__()
+        self.att = MultiHeadAttention(d_in=cfg['emb_dim'], d_out=cfg['emb_dim'], block_size=cfg['context_length'], num_heads=cfg['n_heads'], dropout=cfg['dropout'], qkv_bias=cfg['qkv_bias'])
+        self.ff = FeedForward(cfg)
+        self.norm1 = LayerNorm(cfg['emb_dim'])
+        self.norm2 = LayerNorm(cfg['emb_dim'])
+        self.drop_resid = nn.Dropout(cfg['dropout'])
+
+    def forward(self, x):
+        shortcut = x
+        x = self.norm1(x)
+        x = self.drop_resid(x)
+        x = x + shortcut
+
+        shortcut = x
+
+        x = self.norm2
+        x = self.ff(x)
+        x = self.drop_resid(x)
+        x = x + shortcut
