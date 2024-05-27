@@ -118,7 +118,7 @@ def generate_text_simple(model, idx, max_new_tokens, context_size):
 
 def train_model_simple(model, train_loader, val_loader, optimizer, device, num_epochs, eval_freq, eval_iter, start_context):
     train_losses, val_losses, track_tokens_seen = [] , [] , []
-    tokens_seen = global_step = 0, -1
+    tokens_seen , global_step = 0, -1
 
     for epoch in range(num_epochs):
         model.train()
@@ -157,3 +157,10 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
         decoded_text = token_ids_to_text(token_ids, tokenizer)
         print(decoded_text.replace("\n", " "))
         model.train()
+
+torch.manual_seed(123)
+model = GPTModel(GPT_CONFIG_124M)
+model.to(device)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.0004, weight_decay=0.1)
+num_epochs = 10
+train_losses, val_losses, tokens_seen = train_model_simple(model, train_loader, val_loader, optimizer, device, num_epochs=num_epochs, eval_freq=5,eval_iter=1, start_context="Every effort moves you")
