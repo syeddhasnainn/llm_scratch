@@ -100,6 +100,7 @@ class TransformerBlock(nn.Module):
     def forward(self, x):
         shortcut = x
         x = self.norm1(x)
+        x = self.att(x)
         x = self.drop_resid(x)
         x = x + shortcut
 
