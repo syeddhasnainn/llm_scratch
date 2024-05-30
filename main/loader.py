@@ -161,7 +161,7 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
 # torch.manual_seed(123)
 # model = GPTModel(GPT_CONFIG_124M)
 # model.to(device)
-# optimizer = torch.optim.AdamW(model.parameters(), lr=0.0004, weight_decay=0.1)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.0004, weight_decay=0.1)
 # num_epochs = 10
 # train_losses, val_losses, tokens_seen = train_model_simple(model, train_loader, val_loader, optimizer, device, num_epochs=num_epochs, eval_freq=5,eval_iter=1, start_context="Every effort moves you")
 
@@ -241,26 +241,95 @@ topk_probas = torch.softmax(new_logits, dim=0)
 print(topk_probas)
 
 def generate_modified(model, idx, max_new_tokens, context_size, temperature, top_k=None):
-    for _ in range(max_new_tokens):
+    for _ in range(max_new_tokens):  
         idx_cond = idx[:, -context_size:]
         with torch.no_grad():
             logits = model(idx_cond)
-
-        logits = logits[:,-1,:]
-        if top_k is not None:
+        logits = logits[:, -1, :]
+        if top_k is not None:  
             top_logits, _ = torch.topk(logits, top_k)
             min_val = top_logits[:, -1]
-            logits = torch.where(logits < min_val, torch.tensor(float('-inf')).to(device), logits)
-            if temperature > 0.0:
-                logits = logits / temperature
-                probas = torch.softmax(logits, dim=-1)
-                idx_next = torch.multinomial(probas, num_samples=1)
-            else:
-                idx_next = torch.argmax(logits, dim=-1, keepdim=True)
-                idx = torch.cat((idx, idx_next), dim=1)
-            
+            logits = torch.where(
+                logits < min_val,
+                torch.tensor(float('-inf')).to(logits.device),
+                logits
+            )
+        if temperature > 0.0:  
+            logits = logits / temperature
+            probs = torch.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+        else: 
+            idx_next = torch.argmax(logits, dim=-1, keepdim=True)
+        idx = torch.cat((idx, idx_next), dim=1)
     return idx
 
 torch.manual_seed(123)
 token_ids = generate_modified(model=model, idx=text_to_token_ids("Every effort moves you", tokenizer),max_new_tokens=15, context_size=GPT_CONFIG_124M['context_length'], top_k=25, temperature=1.4)
 print("output text:\n", token_ids_to_text(token_ids, tokenizer))
+
+torch.save(model.state_dict(), 'model.pth')
+
+
+model = GPTModel(GPT_CONFIG_124M)
+model.load_state_dict(torch.load("model.pth"))
+model.eval()
+
+torch.save({"model_state_dict": model.state_dict(), 
+            "optimizer_state_dict":optimizer.state_dict,
+            
+            }, "model_and_optimizer.pth")
+
+
+# checkpoint = torch.load("model_and_optimizer.pth")
+# model = GPTModel(GPT_CONFIG_124M)
+# model.load_state_dict(checkpoint["model_state_dict"])
+# optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.1)
+# optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+# model.train()
+
+from gpt_download import  download_and_load_gpt2
+
+settings, params = download_and_load_gpt2(model_size="124M", models_dir="gpt2")
+
+print("settings", settings)
+print("parameter dictionary keys:", params.keys())
+
+print(params["wte"])
+print('token embedding weight tensor dimensions:', params["wte"].shape)
+
+model_configs = {
+    "gpt2-small (124M)": {"emb_dim": 768, "n_layers": 12, "n_heads": 12},
+    "gpt2-medium (355M)": {"emb_dim": 1024, "n_layers": 24, "n_heads": 16},
+    "gpt2-large (774M)": {"emb_dim": 1280, "n_layers": 36, "n_heads": 20},
+    "gpt2-xl (1558M)": {"emb_dim": 1600, "n_layers": 48, "n_heads": 25},
+}
+
+model_name = "gpt2-small (124M)"
+NEW_CONFIG = GPT_CONFIG_124M.copy()
+NEW_CONFIG.update(model_configs[model_name])
+
+NEW_CONFIG.update({"context_length":1024})
+
+NEW_CONFIG.update({'qkv_bias':True})
+
+print('new config', NEW_CONFIG)
+gpt = GPTModel(NEW_CONFIG)
+print(gpt)
+gpt.eval()
+
+
+from gpt_weights import load_weights_into_gpt
+
+load_weights_into_gpt(gpt, params)
+gpt.to(device)
+
+torch.manual_seed(123)
+token_ids = generate_modified(
+    model=gpt,
+    idx=text_to_token_ids("Every effort moves you", tokenizer),
+    max_new_tokens=25,
+    context_size=NEW_CONFIG["context_length"],
+    top_k=50,
+    temperature=1.5
+)
+print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
