@@ -66,10 +66,20 @@ class MultiHeadAttention(nn.Module):
         context_vec = self.out_proj(context_vec) 
         return context_vec
 
+class GELU(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return 0.5 * x * (1 + torch.tanh(
+            torch.sqrt(torch.tensor(2.0 / torch.pi)) *
+            (x + 0.044715 * torch.pow(x, 3))
+        ))
+    
 class FeedForward(nn.Module):
     def __init__(self, cfg):
         super().__init__()
-        self.layers = nn.Sequential(nn.Linear(cfg['emb_dim'], 4 * cfg['emb_dim']), nn.Linear(4*cfg['emb_dim'], cfg['emb_dim']))
+        self.layers = nn.Sequential(nn.Linear(cfg['emb_dim'], 4 * cfg['emb_dim']), GELU(), nn.Linear(4*cfg['emb_dim'], cfg['emb_dim']))
 
     def forward(self, x):
         return self.layers(x)
@@ -95,20 +105,20 @@ class TransformerBlock(nn.Module):
         self.ff = FeedForward(cfg)
         self.norm1 = LayerNorm(cfg['emb_dim'])
         self.norm2 = LayerNorm(cfg['emb_dim'])
-        self.drop_resid = nn.Dropout(cfg['drop_rate'])
+        self.drop_shortcut = nn.Dropout(cfg["drop_rate"])
 
     def forward(self, x):
         shortcut = x
         x = self.norm1(x)
         x = self.att(x)
-        x = self.drop_resid(x)
+        x = self.drop_shortcut(x)
         x = x + shortcut
 
         shortcut = x
 
         x = self.norm2(x)
         x = self.ff(x)
-        x = self.drop_resid(x)
+        x = self.drop_shortcut(x)
         x = x + shortcut
         return x
 
@@ -136,46 +146,46 @@ class GPTModel(nn.Module):
         logits = self.out_head(x)
         return logits
     
-torch.manual_seed(123)
-model = GPTModel(GPT_CONFIG_124M)
-out = model(batch)
-print('input batch:\n',batch)
-print('\noutput shape:', out.shape)
-print(out)
+# torch.manual_seed(123)
+# model = GPTModel(GPT_CONFIG_124M)
+# out = model(batch)
+# print('input batch:\n',batch)
+# print('\noutput shape:', out.shape)
+# print(out)
 
-total_params = sum(p.numel() for p in model.parameters())
-print('total:', total_params)
+# total_params = sum(p.numel() for p in model.parameters())
+# print('total:', total_params)
 
-total_size_bytes = total_params * 4 
-total_size_mb = total_size_bytes / (1024 * 1024)
-print('size:', total_size_mb)
+# total_size_bytes = total_params * 4 
+# total_size_mb = total_size_bytes / (1024 * 1024)
+# print('size:', total_size_mb)
 
-def generate_text_simple(model, idx, max_new_tokens, context_size):
-    for _ in range(max_new_tokens):
-        idx_cond = idx[:,-context_size:]
+# def generate_text_simple(model, idx, max_new_tokens, context_size):
+#     for _ in range(max_new_tokens):
+#         idx_cond = idx[:,-context_size:]
 
-        with torch.no_grad():
-            logits = model(idx_cond)
-            logits = logits[:, -1,:]
-            probas = torch.softmax(logits, dim=-1)
-            idx_next = torch.argmax(probas, dim=-1, keepdim=True)
-            idx = torch.cat((idx, idx_next), dim=1)
+#         with torch.no_grad():
+#             logits = model(idx_cond)
+#             logits = logits[:, -1,:]
+#             probas = torch.softmax(logits, dim=-1)
+#             idx_next = torch.argmax(probas, dim=-1, keepdim=True)
+#             idx = torch.cat((idx, idx_next), dim=1)
 
-    return idx
+#     return idx
 
-start_context = "Hello, I am"
-encoded = tokenizer.encode(start_context)
-print('encoded:', encoded)
-encoded_tensor = torch.tensor(encoded).unsqueeze(0)
-print(encoded_tensor.shape)
+# start_context = "Hello, I am"
+# encoded = tokenizer.encode(start_context)
+# print('encoded:', encoded)
+# encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+# print(encoded_tensor.shape)
 
-model.eval()
-out = generate_text_simple(model=model, 
-                           idx=encoded_tensor,
-                           max_new_tokens=6,
-                           context_size=GPT_CONFIG_124M['context_length'])
-print('output:', out)
-print(len(out[0]))
+# model.eval()
+# out = generate_text_simple(model=model, 
+#                            idx=encoded_tensor,
+#                            max_new_tokens=6,
+#                            context_size=GPT_CONFIG_124M['context_length'])
+# print('output:', out)
+# print(len(out[0]))
 
-decoded_text = tokenizer.decode(out.squeeze(0).tolist())
-print(decoded_text)
+# decoded_text = tokenizer.decode(out.squeeze(0).tolist())
+# print(decoded_text)
